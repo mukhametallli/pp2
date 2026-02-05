@@ -9,7 +9,7 @@ else:
   print("a is greater than b")
 
 #we can have as many elif, python chek all program and execute the first one that is true.
-  score = 75
+score = 75
 if score >= 90:
   print("Grade: A")
 elif score >= 80:
@@ -20,7 +20,7 @@ elif score >= 60:
   print("Grade: D")
 
 #Use elif when you need to check several conditions, but only one of them can be true.
-  day = 3
+day = 3
 if day == 1:
   print("Monday")
 elif day == 2:
