@@ -1,5 +1,5 @@
 class Person:
-    species = "Human"
+    species = "Human"   # Class attribute (shared by all instances of the class)
 
 p1 = Person()
 p2 = Person()
