@@ -1,0 +1,10 @@
+SuperMart
+Date: 12.03.2025
+Time: 18:42
+
+Milk            450
+Bread           230
+Chocolate       520
+
+TOTAL: 1200
+Payment method: CARD
