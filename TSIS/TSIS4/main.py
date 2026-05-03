@@ -3,6 +3,7 @@
 # It controls menus, screens, buttons, and the main game loop.
 
 import sys
+import os
 import pygame
 from config import *
 from db import init_db, save_result, get_top_scores, get_personal_best
@@ -10,6 +11,40 @@ from game import SnakeGame, load_settings, save_settings
 
 # Start Pygame.
 pygame.init()
+
+# Start mixer for background music.
+# If sound cannot be loaded, the game still works.
+try:
+    pygame.mixer.init()
+except pygame.error as e:
+    print("Sound warning:", e)
+
+# Background music file.
+MUSIC_FILE = os.path.join("assets", "snake.mp3")
+
+
+def start_background_music():
+    # Start snake background music if Sound is ON in settings.
+    if not settings.get("sound", False):
+        pygame.mixer.music.stop()
+        return
+
+    try:
+        if os.path.exists(MUSIC_FILE) and not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load(MUSIC_FILE)
+            pygame.mixer.music.set_volume(0.35)
+            pygame.mixer.music.play(-1)  # -1 means repeat forever.
+    except pygame.error as e:
+        print("Music warning:", e)
+
+
+def stop_background_music():
+    # Stop background music.
+    try:
+        pygame.mixer.music.stop()
+    except pygame.error:
+        pass
+
 
 # Create the game window.
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -24,6 +59,7 @@ small_font = pygame.font.SysFont("arial", 20)
 
 # Load settings from settings.json.
 settings = load_settings()
+start_background_music()
 
 # Default player name.
 username = "Player"
@@ -247,9 +283,14 @@ def settings_screen():
                     settings["grid"] = not settings["grid"]
 
                 # Turn sound ON or OFF.
-                # In this version, sound setting is saved but no sound file is used.
+                # When Sound is ON, snake.mp3 plays in the background.
                 elif sound_btn.collidepoint(event.pos):
                     settings["sound"] = not settings["sound"]
+                    save_settings(settings)
+                    if settings["sound"]:
+                        start_background_music()
+                    else:
+                        stop_background_music()
 
                 # Save settings and go back.
                 elif save_back.collidepoint(event.pos):
@@ -314,6 +355,9 @@ def run_game():
     # This function runs the actual snake game.
     global last_result_saved
     last_result_saved = False
+
+    # Make sure background music is playing if Sound is ON.
+    start_background_music()
 
     # Get player's personal best from database.
     try:

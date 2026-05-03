@@ -1,5 +1,11 @@
 [
     {
+        "name": "Damir",
+        "score": 4501,
+        "distance": 1225,
+        "coins": 41
+    },
+    {
         "name": "Player",
         "score": 3771,
         "distance": 1260,
@@ -7,8 +13,50 @@
     },
     {
         "name": "Player",
+        "score": 2875,
+        "distance": 962,
+        "coins": 19
+    },
+    {
+        "name": "Damir",
+        "score": 2874,
+        "distance": 1012,
+        "coins": 17
+    },
+    {
+        "name": "Player",
+        "score": 2491,
+        "distance": 870,
+        "coins": 15
+    },
+    {
+        "name": "Player",
+        "score": 2433,
+        "distance": 941,
+        "coins": 11
+    },
+    {
+        "name": "Player",
         "score": 2187,
         "distance": 693,
         "coins": 16
+    },
+    {
+        "name": "Player",
+        "score": 1372,
+        "distance": 510,
+        "coins": 7
+    },
+    {
+        "name": "Diana",
+        "score": 1191,
+        "distance": 445,
+        "coins": 6
+    },
+    {
+        "name": "Player",
+        "score": 631,
+        "distance": 265,
+        "coins": 2
     }
 ]

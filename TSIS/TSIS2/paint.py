@@ -13,7 +13,6 @@ from pathlib import Path
 import pygame
 
 # STEP 3: Import helper functions and constants from tools.py.
-# This keeps the main file cleaner.
 from tools import BRUSH_SIZES, CANVAS_BG, PALETTE, clamp_point, draw_button, draw_gradient, flood_fill, save_canvas
 
 
@@ -26,7 +25,6 @@ SCREEN_H = 840
 TOP_PANEL_H = 260
 
 # STEP 6: Set the canvas position.
-# The canvas starts below the top toolbar.
 CANVAS_X = 8
 CANVAS_Y = TOP_PANEL_H + 8
 CANVAS_W = SCREEN_W - 16
@@ -34,27 +32,29 @@ CANVAS_H = SCREEN_H - CANVAS_Y - 8
 
 # STEP 7: Create the main window.
 screen = pygame.display.set_mode((SCREEN_W, SCREEN_H))
-pygame.display.set_caption("Paint App - Clean Layout Edition")
+pygame.display.set_caption("TSIS 2 Paint - Extended Drawing Tools")
 
 # STEP 8: Create the game clock.
-# It controls how fast the program updates.
 clock = pygame.time.Clock()
 
 # STEP 9: Create fonts for text.
 font = pygame.font.Font(None, 34)
 small_font = pygame.font.Font(None, 30)
+text_font = pygame.font.Font(None, 38)
 
 # STEP 10: Create the drawing canvas.
-# This is where the user draws.
 canvas = pygame.Surface((CANVAS_W, CANVAS_H))
 canvas.fill(CANVAS_BG)
 
 # STEP 11: List all drawing tools.
 tools = [
-    "brush",
+    "pencil",
+    "line",
     "rectangle",
     "circle",
     "eraser",
+    "fill",
+    "text",
     "square",
     "r_triangular",
     "eq_triangle",
@@ -62,20 +62,24 @@ tools = [
 ]
 
 # STEP 12: Keyboard shortcuts for tools.
+# Size uses 1, 2, 3. Shape shortcuts use letters to avoid conflict.
 tool_shortcuts = {
-    pygame.K_b: "brush",
+    pygame.K_p: "pencil",
+    pygame.K_l: "line",
     pygame.K_r: "rectangle",
     pygame.K_c: "circle",
     pygame.K_e: "eraser",
+    pygame.K_f: "fill",
+    pygame.K_t: "text",
     pygame.K_s: "square",
-    pygame.K_1: "r_triangular",
-    pygame.K_2: "eq_triangle",
+    pygame.K_q: "r_triangular",
+    pygame.K_w: "eq_triangle",
     pygame.K_h: "rhombus",
 }
 
 # STEP 13: Set default tool, size, and color.
-active_tool = "brush"
-active_size = BRUSH_SIZES[1]
+active_tool = "pencil"
+active_size = BRUSH_SIZES[2]
 active_color = (0, 0, 0)
 
 # STEP 14: Variables for drawing.
@@ -84,25 +88,27 @@ last_pos: tuple[int, int] | None = None
 start_pos: tuple[int, int] | None = None
 preview_pos: tuple[int, int] | None = None
 
-# STEP 15: Rectangles for clickable buttons.
+# STEP 15: Variables for the text tool.
+text_mode = False
+text_pos: tuple[int, int] | None = None
+current_text = ""
+cursor_visible = True
+cursor_timer = 0
+
+# STEP 16: Rectangles for clickable buttons.
 tool_buttons: dict[str, pygame.Rect] = {}
 color_buttons: list[tuple[pygame.Rect, tuple[int, int, int]]] = []
 size_buttons: dict[int, pygame.Rect] = {}
 clear_button: pygame.Rect | None = None
 save_button: pygame.Rect | None = None
 
-# STEP 16: Rectangle for the gradient color picker.
+# STEP 17: Rectangle for the gradient color picker.
 gradient_rect = pygame.Rect(995, 80, 295, 88)
 
 
 def canvas_rect() -> pygame.Rect:
-    # STEP 17: Return the canvas area as a rectangle.
+    # STEP 18: Return the canvas area as a rectangle.
     return pygame.Rect(CANVAS_X, CANVAS_Y, CANVAS_W, CANVAS_H)
-
-
-def canvas_to_screen(pos: tuple[int, int]) -> tuple[int, int]:
-    # STEP 18: Convert canvas coordinates to screen coordinates.
-    return pos[0] + CANVAS_X, pos[1] + CANVAS_Y
 
 
 def in_canvas(pos: tuple[int, int]) -> bool:
@@ -117,7 +123,6 @@ def to_canvas_pos(pos: tuple[int, int]) -> tuple[int, int]:
 
 def make_shape_rect(a: tuple[int, int], b: tuple[int, int], force_square: bool = False) -> pygame.Rect:
     # STEP 21: Make a rectangle from two points.
-    # If force_square is True, the rectangle becomes a square.
     x1, y1 = a
     x2, y2 = b
 
@@ -134,10 +139,8 @@ def triangle_points(kind: str, a: tuple[int, int], b: tuple[int, int]) -> list[t
     rect = make_shape_rect(a, b)
 
     if kind == "r_triangular":
-        # Right triangle.
         return [(rect.left, rect.bottom), (rect.left, rect.top), (rect.right, rect.bottom)]
 
-    # Equilateral-style triangle.
     return [(rect.centerx, rect.top), (rect.left, rect.bottom), (rect.right, rect.bottom)]
 
 
@@ -153,8 +156,12 @@ def rhombus_points(a: tuple[int, int], b: tuple[int, int]) -> list[tuple[int, in
 
 
 def draw_shape(target: pygame.Surface, tool: str, start: tuple[int, int], end: tuple[int, int]) -> None:
-    # STEP 24: Draw the selected shape on the target surface.
-    if tool == "rectangle":
+    # STEP 24: Draw selected shape on the target surface.
+    # Every shape uses active_size as the line width.
+    if tool == "line":
+        pygame.draw.line(target, active_color, start, end, active_size)
+
+    elif tool == "rectangle":
         pygame.draw.rect(target, active_color, make_shape_rect(start, end), width=active_size)
 
     elif tool == "square":
@@ -172,24 +179,26 @@ def draw_shape(target: pygame.Surface, tool: str, start: tuple[int, int], end: t
 
 
 def draw_interface() -> None:
-    # STEP 25: Draw the top gray panel, buttons, colors, and info box.
+    # STEP 25: Draw the top panel, buttons, colors, sizes, and info box.
     global tool_buttons, color_buttons, size_buttons, clear_button, save_button
 
-    # Draw top panel.
     pygame.draw.rect(screen, (198, 198, 198), (0, 0, SCREEN_W, TOP_PANEL_H))
     pygame.draw.line(screen, (150, 150, 150), (0, TOP_PANEL_H), (SCREEN_W, TOP_PANEL_H), 2)
 
-    # Draw tool buttons.
+    # Tool buttons.
     tool_buttons = {}
     names = [
-        ("brush", 12, 58),
-        ("rectangle", 165, 58),
-        ("circle", 318, 58),
-        ("eraser", 471, 58),
-        ("square", 624, 58),
-        ("r_triangular", 12, 110),
-        ("eq_triangle", 165, 110),
-        ("rhombus", 318, 110),
+        ("pencil", 12, 50),
+        ("line", 165, 50),
+        ("rectangle", 318, 50),
+        ("circle", 471, 50),
+        ("eraser", 624, 50),
+        ("fill", 777, 50),
+        ("text", 12, 102),
+        ("square", 165, 102),
+        ("r_triangular", 318, 102),
+        ("eq_triangle", 471, 102),
+        ("rhombus", 624, 102),
     ]
 
     for name, x, y in names:
@@ -197,46 +206,51 @@ def draw_interface() -> None:
         tool_buttons[name] = rect
         draw_button(screen, rect, name, small_font, active_tool == name)
 
-    # Draw clear and save buttons.
-    clear_button = pygame.Rect(471, 110, 140, 42)
-    save_button = pygame.Rect(624, 110, 140, 42)
+    # Clear and save buttons.
+    clear_button = pygame.Rect(777, 102, 140, 42)
+    save_button = pygame.Rect(930, 102, 140, 42)
     draw_button(screen, clear_button, "clear", small_font, False)
     draw_button(screen, save_button, "save", small_font, False)
 
-    # Draw color buttons.
+    # Color buttons.
     color_buttons = []
     for idx, color in enumerate(PALETTE):
         rect = pygame.Rect(12 + idx * 56, 178, 46, 34)
         pygame.draw.rect(screen, color, rect)
         pygame.draw.rect(screen, (0, 0, 0), rect, width=2)
 
-        # White border shows selected color.
         if color == active_color:
             pygame.draw.rect(screen, (255, 255, 255), rect.inflate(-8, -8), width=2)
 
         color_buttons.append((rect, color))
 
-    # Draw gradient color picker.
+    # Size buttons. Keys 1, 2, 3 use these same levels.
+    size_buttons = {}
+    for idx, level in enumerate((1, 2, 3)):
+        rect = pygame.Rect(430 + idx * 65, 178, 55, 34)
+        size_buttons[level] = rect
+        label = f"{level}:{BRUSH_SIZES[level]}"
+        draw_button(screen, rect, label, small_font, active_size == BRUSH_SIZES[level])
+
+    # Gradient color picker.
     draw_gradient(screen, gradient_rect)
     pygame.draw.rect(screen, (0, 0, 0), gradient_rect, width=2)
 
-    # Draw current color box.
-    pygame.draw.rect(screen, active_color, pygame.Rect(gradient_rect.right - 72, gradient_rect.y - 8, 68, 68))
-    pygame.draw.rect(screen, (0, 0, 0), pygame.Rect(gradient_rect.right - 72, gradient_rect.y - 8, 68, 68), width=2)
+    # Current color box.
+    color_box = pygame.Rect(gradient_rect.right - 72, gradient_rect.y - 8, 68, 68)
+    pygame.draw.rect(screen, active_color, color_box)
+    pygame.draw.rect(screen, (0, 0, 0), color_box, width=2)
 
-    # Draw info box.
-    info = pygame.Rect(980, 183, 300, 66)
+    # Info box.
+    info = pygame.Rect(980, 183, 320, 66)
     pygame.draw.rect(screen, (255, 255, 255), info)
     pygame.draw.rect(screen, (70, 70, 70), info, width=2)
     screen.blit(small_font.render(f"Tool: {active_tool}", True, (0, 0, 0)), (info.x + 14, info.y + 10))
-    screen.blit(small_font.render(f"Size: {active_size}", True, (0, 0, 0)), (info.x + 14, info.y + 36))
+    screen.blit(small_font.render(f"Size: {active_size} px", True, (0, 0, 0)), (info.x + 14, info.y + 36))
 
-    # Draw size buttons.
-    size_buttons = {}
-    for idx, level in enumerate((1, 2, 3)):
-        rect = pygame.Rect(795 + idx * 55, 178, 42, 34)
-        size_buttons[level] = rect
-        draw_button(screen, rect, str(BRUSH_SIZES[level]), small_font, active_size == BRUSH_SIZES[level])
+    # Short help line.
+    help_text = "Keys: 1/2/3 size | P pencil | L line | F fill | T text | Ctrl+S save"
+    screen.blit(small_font.render(help_text, True, (0, 0, 0)), (12, 225))
 
 
 def draw_canvas_frame() -> None:
@@ -247,15 +261,51 @@ def draw_canvas_frame() -> None:
 
 
 def draw_preview() -> None:
-    # STEP 27: Show shape preview before mouse release.
-    if drawing and start_pos and preview_pos and active_tool not in {"brush", "eraser"}:
+    # STEP 27: Show live preview for line and shapes before mouse release.
+    if drawing and start_pos and preview_pos and active_tool not in {"pencil", "eraser", "fill", "text"}:
         preview = pygame.Surface((CANVAS_W, CANVAS_H), pygame.SRCALPHA)
         draw_shape(preview, active_tool, start_pos, preview_pos)
         screen.blit(preview, (CANVAS_X, CANVAS_Y))
 
 
+def draw_text_preview() -> None:
+    # STEP 28: Show typed text before Enter is pressed.
+    if not text_mode or text_pos is None:
+        return
+
+    text_surface = text_font.render(current_text, True, active_color)
+    screen.blit(text_surface, (CANVAS_X + text_pos[0], CANVAS_Y + text_pos[1]))
+
+    if cursor_visible:
+        cursor_x = CANVAS_X + text_pos[0] + text_surface.get_width() + 2
+        cursor_y = CANVAS_Y + text_pos[1]
+        pygame.draw.line(screen, active_color, (cursor_x, cursor_y), (cursor_x, cursor_y + text_surface.get_height()), 2)
+
+
+def confirm_text() -> None:
+    # STEP 29: Render typed text permanently onto the canvas.
+    global text_mode, text_pos, current_text
+
+    if text_mode and text_pos is not None and current_text:
+        text_surface = text_font.render(current_text, True, active_color)
+        canvas.blit(text_surface, text_pos)
+
+    text_mode = False
+    text_pos = None
+    current_text = ""
+
+
+def cancel_text() -> None:
+    # STEP 30: Cancel text input without drawing it.
+    global text_mode, text_pos, current_text
+
+    text_mode = False
+    text_pos = None
+    current_text = ""
+
+
 def start_drawing(pos: tuple[int, int]) -> None:
-    # STEP 28: Start drawing when mouse button is pressed.
+    # STEP 31: Start drawing when mouse button is pressed.
     global drawing, last_pos, start_pos, preview_pos
 
     drawing = True
@@ -265,10 +315,10 @@ def start_drawing(pos: tuple[int, int]) -> None:
 
 
 def end_drawing(pos: tuple[int, int]) -> None:
-    # STEP 29: Finish drawing when mouse button is released.
+    # STEP 32: Finish drawing when mouse button is released.
     global drawing, last_pos, start_pos, preview_pos
 
-    if start_pos and active_tool not in {"brush", "eraser"}:
+    if start_pos and active_tool not in {"pencil", "eraser", "fill", "text"}:
         draw_shape(canvas, active_tool, start_pos, pos)
 
     drawing = False
@@ -278,81 +328,107 @@ def end_drawing(pos: tuple[int, int]) -> None:
 
 
 def handle_keydown(event: pygame.event.Event) -> None:
-    # STEP 30: Handle keyboard actions.
-    global active_tool, active_size
+    # STEP 33: Handle keyboard actions.
+    global active_tool, active_size, current_text, cursor_visible
 
-    # Ctrl + S saves the picture.
-    if event.mod & pygame.KMOD_CTRL and event.key == pygame.K_s:
+    # Text mode has special keyboard logic.
+    if text_mode:
+        if event.key == pygame.K_RETURN:
+            confirm_text()
+            return
+        if event.key == pygame.K_ESCAPE:
+            cancel_text()
+            return
+        if event.key == pygame.K_BACKSPACE:
+            current_text = current_text[:-1]
+            return
+        if event.unicode:
+            current_text += event.unicode
+            cursor_visible = True
+            return
+
+    # Ctrl + S or Cmd + S saves the picture.
+    if (event.mod & pygame.KMOD_CTRL or event.mod & pygame.KMOD_META) and event.key == pygame.K_s:
         path = save_canvas(canvas, Path("."))
         print(f"Saved: {path}")
         return
 
-    # Keys 3, 4, 5 change brush size.
-    if event.key in (pygame.K_3, pygame.K_4, pygame.K_5):
-        active_size = {pygame.K_3: 2, pygame.K_4: 5, pygame.K_5: 10}[event.key]
+    # Keys 1, 2, 3 change brush size.
+    if event.key in (pygame.K_1, pygame.K_2, pygame.K_3):
+        active_size = BRUSH_SIZES[{pygame.K_1: 1, pygame.K_2: 2, pygame.K_3: 3}[event.key]]
         return
 
     # Tool shortcuts.
     if event.key in tool_shortcuts:
         active_tool = tool_shortcuts[event.key]
+        return
 
     # Backspace clears canvas.
-    elif event.key == pygame.K_BACKSPACE:
+    if event.key == pygame.K_BACKSPACE:
         canvas.fill(CANVAS_BG)
+        return
 
-    # Escape closes the program.
-    elif event.key == pygame.K_ESCAPE:
+    # Escape closes the program when text tool is not active.
+    if event.key == pygame.K_ESCAPE:
         pygame.quit()
         sys.exit()
 
 
 def handle_mouse_down(event: pygame.event.Event) -> None:
-    # STEP 31: Handle mouse click.
-    global active_tool, active_color, active_size
+    # STEP 34: Handle mouse click.
+    global active_tool, active_color, active_size, text_mode, text_pos, current_text
 
     pos = event.pos
 
-    # Click clear button.
     if clear_button and clear_button.collidepoint(pos):
         canvas.fill(CANVAS_BG)
+        cancel_text()
         return
 
-    # Click save button.
     if save_button and save_button.collidepoint(pos):
         path = save_canvas(canvas, Path("."))
         print(f"Saved: {path}")
         return
 
-    # Click tool button.
     for name, rect in tool_buttons.items():
         if rect.collidepoint(pos):
             active_tool = name
+            cancel_text()
             return
 
-    # Click size button.
     for level, rect in size_buttons.items():
         if rect.collidepoint(pos):
             active_size = BRUSH_SIZES[level]
             return
 
-    # Click color button.
     for rect, color in color_buttons:
         if rect.collidepoint(pos):
             active_color = color
             return
 
-    # Click gradient to choose any color.
     if gradient_rect.collidepoint(pos):
         active_color = screen.get_at(pos)[:3]
         return
 
-    # Click canvas to start drawing.
     if in_canvas(pos):
-        start_drawing(to_canvas_pos(pos))
+        local = to_canvas_pos(pos)
+
+        if active_tool == "fill":
+            flood_fill(canvas, local, active_color)
+            return
+
+        if active_tool == "text":
+            text_mode = True
+            text_pos = local
+            current_text = ""
+            return
+
+        cancel_text()
+        start_drawing(local)
 
 
 def handle_mouse_up(event: pygame.event.Event) -> None:
-    # STEP 32: Stop drawing when mouse button is released.
+    # STEP 35: Stop drawing when mouse button is released.
     if drawing:
         local = to_canvas_pos(event.pos) if in_canvas(event.pos) else preview_pos or start_pos
         if local:
@@ -360,7 +436,7 @@ def handle_mouse_up(event: pygame.event.Event) -> None:
 
 
 def handle_mouse_motion(event: pygame.event.Event) -> None:
-    # STEP 33: Draw while mouse is moving.
+    # STEP 36: Draw while mouse is moving.
     global last_pos, preview_pos
 
     if not drawing or not in_canvas(event.pos):
@@ -368,29 +444,34 @@ def handle_mouse_motion(event: pygame.event.Event) -> None:
 
     local = to_canvas_pos(event.pos)
 
-    # Brush and eraser draw immediately.
-    if active_tool in {"brush", "eraser"} and last_pos is not None:
+    # Pencil and eraser draw immediately.
+    if active_tool in {"pencil", "eraser"} and last_pos is not None:
         draw_color = CANVAS_BG if active_tool == "eraser" else active_color
         pygame.draw.line(canvas, draw_color, last_pos, local, active_size)
         pygame.draw.circle(canvas, draw_color, local, max(1, active_size // 2))
         last_pos = local
-
-    # Shapes only show preview while dragging.
     else:
+        # Line and shapes only show live preview while dragging.
         preview_pos = local
 
 
 def main() -> None:
-    # STEP 34: Main program loop.
-    # It runs until the user closes the window.
+    # STEP 37: Main program loop.
+    global cursor_visible, cursor_timer
+
     while True:
-        # Draw background, interface, canvas, and preview.
         screen.fill((255, 255, 255))
         draw_interface()
         draw_canvas_frame()
         draw_preview()
+        draw_text_preview()
 
-        # Check all pygame events.
+        # Cursor blinking for text tool.
+        cursor_timer += clock.get_time()
+        if cursor_timer >= 500:
+            cursor_visible = not cursor_visible
+            cursor_timer = 0
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
@@ -408,13 +489,10 @@ def main() -> None:
             elif event.type == pygame.MOUSEMOTION:
                 handle_mouse_motion(event)
 
-        # Update screen.
         pygame.display.flip()
-
-        # Limit FPS.
         clock.tick(120)
 
 
-# STEP 35: Start the program.
+# STEP 38: Start the program.
 if __name__ == "__main__":
     main()

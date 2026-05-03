@@ -1,8 +1,9 @@
-from practice8.connect import get_connection
+from connect import get_connection
+
 
 def insert_or_update():
-    name = input("Enter name: ")
-    phone = input("Enter phone: ")
+    name = input("Enter name: ").strip()
+    phone = input("Enter phone: ").strip()
 
     conn = get_connection()
     cur = conn.cursor()
@@ -13,9 +14,11 @@ def insert_or_update():
     cur.close()
     conn.close()
 
+    print("Contact inserted or updated.")
+
 
 def search():
-    pattern = input("Search: ")
+    pattern = input("Search: ").strip()
 
     conn = get_connection()
     cur = conn.cursor()
@@ -23,8 +26,11 @@ def search():
     cur.execute("SELECT * FROM search_contacts(%s)", (pattern,))
     rows = cur.fetchall()
 
-    for row in rows:
-        print(row)
+    if rows:
+        for row in rows:
+            print(row)
+    else:
+        print("No contacts found.")
 
     cur.close()
     conn.close()
@@ -40,15 +46,18 @@ def paginate():
     cur.execute("SELECT * FROM get_contacts_paginated(%s, %s)", (limit, offset))
     rows = cur.fetchall()
 
-    for row in rows:
-        print(row)
+    if rows:
+        for row in rows:
+            print(row)
+    else:
+        print("No contacts found.")
 
     cur.close()
     conn.close()
 
 
 def delete():
-    value = input("Enter name or phone to delete: ")
+    value = input("Enter name or phone to delete: ").strip()
 
     conn = get_connection()
     cur = conn.cursor()
@@ -59,15 +68,22 @@ def delete():
     cur.close()
     conn.close()
 
+    print("Contact deleted if it existed.")
+
 
 def bulk_insert():
     n = int(input("How many contacts: "))
+
     names = []
     phones = []
 
-    for _ in range(n):
-        names.append(input("Name: "))
-        phones.append(input("Phone: "))
+    for i in range(n):
+        print(f"\nContact {i + 1}")
+        name = input("Name: ").strip()
+        phone = input("Phone: ").strip()
+
+        names.append(name)
+        phones.append(phone)
 
     conn = get_connection()
     cur = conn.cursor()
@@ -90,17 +106,18 @@ def bulk_insert():
     else:
         print("All contacts inserted successfully.")
 
+
 def menu():
     while True:
-        print("\n--- PhoneBook ---")
-        print("1. Insert/Update")
+        print("\n--- PhoneBook Practice 8 ---")
+        print("1. Insert or Update")
         print("2. Search")
         print("3. Pagination")
         print("4. Delete")
         print("5. Bulk Insert")
-        print("6. Exit")
+        print("0. Exit")
 
-        choice = input("Choose: ")
+        choice = input("Choose: ").strip()
 
         if choice == "1":
             insert_or_update()
@@ -112,10 +129,11 @@ def menu():
             delete()
         elif choice == "5":
             bulk_insert()
-        elif choice == "6":
+        elif choice == "0":
+            print("Goodbye.")
             break
         else:
-            print("Invalid choice")
+            print("Invalid choice.")
 
 
 if __name__ == "__main__":

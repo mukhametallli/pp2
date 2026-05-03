@@ -1,24 +1,27 @@
--- Search by pattern
 CREATE OR REPLACE FUNCTION search_contacts(pattern TEXT)
-RETURNS TABLE(name VARCHAR, phone VARCHAR) AS $$
+RETURNS TABLE(id INTEGER, first_name VARCHAR, phone VARCHAR)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
-    SELECT c.name, c.phone
-    FROM contacts c
-    WHERE c.name ILIKE '%' || pattern || '%'
-       OR c.phone ILIKE '%' || pattern || '%';
+    SELECT p.id, p.first_name, p.phone
+    FROM phonebook p
+    WHERE p.first_name ILIKE '%' || pattern || '%'
+       OR p.phone ILIKE '%' || pattern || '%'
+    ORDER BY p.first_name;
 END;
-$$ LANGUAGE plpgsql;
+$$;
 
 
--- Pagination
-CREATE OR REPLACE FUNCTION get_contacts_paginated(p_limit INT, p_offset INT)
-RETURNS TABLE(name VARCHAR, phone VARCHAR) AS $$
+CREATE OR REPLACE FUNCTION get_contacts_paginated(p_limit INTEGER, p_offset INTEGER)
+RETURNS TABLE(id INTEGER, first_name VARCHAR, phone VARCHAR)
+LANGUAGE plpgsql
+AS $$
 BEGIN
     RETURN QUERY
-    SELECT c.name, c.phone
-    FROM contacts c
-    ORDER BY c.name
+    SELECT p.id, p.first_name, p.phone
+    FROM phonebook p
+    ORDER BY p.id
     LIMIT p_limit OFFSET p_offset;
 END;
-$$ LANGUAGE plpgsql;
+$$;

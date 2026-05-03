@@ -2,6 +2,8 @@
 # It controls the player car, traffic, obstacles, coins, power-ups, score, and road.
 
 import random
+from pathlib import Path
+
 import pygame
 from persistence import add_score
 
@@ -47,6 +49,12 @@ DIFFICULTY = {
     "normal": {"speed": 5, "traffic": 75, "obstacle": 120},
     "hard": {"speed": 6, "traffic": 55, "obstacle": 90}
 }
+
+# Sound files. Put racer.mp3 and crash.mp3 in the same folder as racer.py
+# or inside an assets/ folder. The code checks both places.
+BASE_DIR = Path(__file__).resolve().parent
+MUSIC_PATHS = [BASE_DIR / "assets" / "racer.mp3", BASE_DIR / "racer.mp3"]
+CRASH_PATHS = [BASE_DIR / "assets" / "crash.mp3", BASE_DIR / "crash.mp3"]
 
 
 # This class stores the player's car.
@@ -181,8 +189,69 @@ class RacerGame:
         self.settings = settings
         self.font = pygame.font.SysFont(None, 28)
         self.big_font = pygame.font.SysFont(None, 56)
+        self.crash_sound = None
+
+        # Prepare sound effects and background music.
+        self.load_sounds()
+
         # Prepare all game variables.
         self.reset()
+
+    def sound_enabled(self):
+        # Return True if sound is turned on in settings.json.
+        return self.settings.get("sound", True)
+
+    def find_existing_file(self, paths):
+        # Find the first sound file that really exists.
+        for path in paths:
+            if path.exists():
+                return path
+        return None
+
+    def load_sounds(self):
+        # Load crash sound. If file is missing, game still works without sound.
+        if not self.sound_enabled():
+            return
+
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+
+            crash_path = self.find_existing_file(CRASH_PATHS)
+            if crash_path:
+                self.crash_sound = pygame.mixer.Sound(str(crash_path))
+                self.crash_sound.set_volume(0.8)
+
+        except pygame.error:
+            self.crash_sound = None
+
+    def start_background_music(self):
+        # Start racer.mp3 as background music during the race.
+        if not self.sound_enabled():
+            return
+
+        try:
+            if not pygame.mixer.get_init():
+                pygame.mixer.init()
+
+            music_path = self.find_existing_file(MUSIC_PATHS)
+            if music_path:
+                pygame.mixer.music.load(str(music_path))
+                pygame.mixer.music.set_volume(0.35)
+                pygame.mixer.music.play(-1)
+
+        except pygame.error:
+            pass
+
+    def stop_background_music(self):
+        # Stop music when the race ends.
+        if pygame.mixer.get_init():
+            pygame.mixer.music.stop()
+
+    def play_crash_sound(self):
+        # Play crash sound once when the player has a real crash.
+        if self.sound_enabled() and self.crash_sound:
+            self.crash_sound.play()
 
     def reset(self):
         # Start a new race and reset all variables.
@@ -315,6 +384,7 @@ class RacerGame:
         for car in self.traffic:
             if self.player.rect.colliderect(car.rect):
                 if self.collision_hit():
+                    self.play_crash_sound()
                     self.running = False
                     self.game_over_reason = "Crashed into traffic"
                 else:
@@ -333,6 +403,7 @@ class RacerGame:
                     obstacle.rect.y = HEIGHT + 200
                 else:
                     if self.collision_hit():
+                        self.play_crash_sound()
                         self.running = False
                         self.game_over_reason = "Hit a barrier"
                     else:
@@ -414,18 +485,25 @@ class RacerGame:
 
     def run(self):
         # Main game loop. It runs until the race ends.
-        while self.running:
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    pygame.quit()
-                    raise SystemExit
-                if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                    self.running = False
-                    self.game_over_reason = "Stopped"
-            self.update()
-            self.draw()
-            pygame.display.flip()
-            self.clock.tick(FPS)
+        self.start_background_music()
+
+        try:
+            while self.running:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        self.stop_background_music()
+                        pygame.quit()
+                        raise SystemExit
+                    if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
+                        self.running = False
+                        self.game_over_reason = "Stopped"
+                self.update()
+                self.draw()
+                pygame.display.flip()
+                self.clock.tick(FPS)
+        finally:
+            self.stop_background_music()
+
         self.save_score_once()
         return {
             "reason": self.game_over_reason,

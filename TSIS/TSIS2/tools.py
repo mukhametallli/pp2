@@ -69,8 +69,8 @@ def clamp_point(pos: tuple[int, int], width: int, height: int) -> tuple[int, int
 
 
 def flood_fill(surface: pygame.Surface, start_pos: tuple[int, int], new_color: tuple[int, int, int]) -> None:
-    # STEP 9: Fill an area with a new color.
-    # This function is kept for project logic.
+    # STEP 9: Fill a closed area with a new color.
+    # It checks pixels with get_at() and changes pixels with set_at().
     width, height = surface.get_size()
     x, y = start_pos
 
@@ -80,6 +80,7 @@ def flood_fill(surface: pygame.Surface, start_pos: tuple[int, int], new_color: t
     target = surface.get_at((x, y))
     replacement = pygame.Color(*new_color)
 
+    # If the clicked area already has the same color, nothing changes.
     if target == replacement:
         return
 
@@ -103,7 +104,7 @@ def flood_fill(surface: pygame.Surface, start_pos: tuple[int, int], new_color: t
 
 
 def save_canvas(surface: pygame.Surface, folder: Path | str = ".") -> Path:
-    # STEP 10: Save the canvas as a PNG image.
+    # STEP 10: Save the canvas as a PNG image with a timestamp.
     folder_path = Path(folder)
     folder_path.mkdir(parents=True, exist_ok=True)
 

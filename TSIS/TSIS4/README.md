@@ -12,6 +12,7 @@
 - Power-ups: speed boost, slow motion, shield
 - Obstacles starting from Level 3
 - Settings saved in `settings.json`: snake color, grid, sound
+- Background music: `assets/snake.mp3`
 - Screens: Main Menu, Game Over, Leaderboard, Settings
 
 ## Files
@@ -25,6 +26,7 @@ TSIS4/
 ├── settings.json
 ├── README.md
 └── assets/
+    └── snake.mp3
 ```
 
 ## Installation
@@ -73,6 +75,7 @@ python3 main.py
 - Arrow keys — move snake
 - Escape — return to menu during gameplay
 - Mouse — menu/settings buttons
+- Settings → Sound ON/OFF — background snake music
 
 ## GitHub commands
 
